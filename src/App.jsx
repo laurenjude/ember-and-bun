@@ -1,11 +1,11 @@
-import Navbar from './components/Navbar'
-import Hero from './components/Hero'
-import AIBanner from './components/AIBanner'
-import Menu from './components/Menu'
-import About from './components/About'
-import CTA from './components/CTA'
-import Footer from './components/Footer'
-import FloatingCallButton from './components/FloatingCallButton'
+import Navbar from "./components/Navbar";
+import Hero from "./components/Hero";
+import AIBanner from "./components/AIBanner";
+import Menu from "./components/Menu";
+import About from "./components/About";
+import CTA from "./components/CTA";
+import Footer from "./components/Footer";
+import VoiceCallWidget from "./components/VoiceCallWidget";
 
 export default function App() {
   return (
@@ -17,7 +17,7 @@ export default function App() {
       <About />
       <CTA />
       <Footer />
-      <FloatingCallButton />
+      <VoiceCallWidget />
     </div>
-  )
+  );
 }
