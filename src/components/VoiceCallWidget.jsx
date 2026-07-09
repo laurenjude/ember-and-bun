@@ -1,56 +1,97 @@
-import { useState, useRef, useEffect } from "react";
-import Vapi from "@vapi-ai/web";
-import { Phone, PhoneOff, Mic, MicOff } from "lucide-react";
+﻿import { useState, useRef, useEffect, useCallback } from "react"
+import Vapi from "@vapi-ai/web"
+import { Phone, PhoneOff, Mic, MicOff } from "lucide-react"
 
-const VAPI_PUBLIC_KEY = "a68ed201-6a32-4dd7-b462-12784a326f06";
-const ASSISTANT_ID = "40dcc6b5-7718-40ef-bca6-fedb514dd0b0";
+const VAPI_PUBLIC_KEY = "a68ed201-6a32-4dd7-b462-12784a326f06"
+const ASSISTANT_ID = "40dcc6b5-7718-40ef-bca6-fedb514dd0b0"
 
 export default function VoiceCallWidget() {
-  const [callStatus, setCallStatus] = useState("idle");
-  const [isMuted, setIsMuted] = useState(false);
-  const vapiRef = useRef(null);
+  const [callStatus, setCallStatus] = useState("idle")
+  const [isMuted, setIsMuted] = useState(false)
+  const vapiRef = useRef(null)
+  const startCallRef = useRef(null)
 
-  const startCall = async () => {
-    if (callStatus !== "idle") return;
-    setCallStatus("connecting");
-    try {
-      await vapiRef.current.start(ASSISTANT_ID);
-    } catch (err) {
-      console.error("Call failed:", err);
-      setCallStatus("idle");
+  const cleanupVapi = () => {
+    if (vapiRef.current) {
+      try {
+        vapiRef.current.stop()
+      } catch (err) {
+        console.warn("Failed to stop Vapi instance:", err)
+      }
+      vapiRef.current = null
     }
-  };
+  }
+
+  const createVapi = () => {
+    const vapi = new Vapi(VAPI_PUBLIC_KEY)
+
+    vapi.on("call-start", () => {
+      setCallStatus("active")
+    })
+
+    vapi.on("call-end", () => {
+      setCallStatus("idle")
+      setIsMuted(false)
+      cleanupVapi()
+    })
+
+    vapi.on("error", (err) => {
+      console.error("Vapi error:", err)
+      setCallStatus("idle")
+      cleanupVapi()
+    })
+
+    return vapi
+  }
+
+  const startCall = useCallback(async () => {
+    if (callStatus !== "idle") return
+
+    setCallStatus("connecting")
+
+    if (!vapiRef.current) {
+      vapiRef.current = createVapi()
+    }
+
+    try {
+      await vapiRef.current.start(ASSISTANT_ID)
+    } catch (err) {
+      console.error("Call failed:", err)
+      setCallStatus("idle")
+      cleanupVapi()
+    }
+  }, [callStatus])
+
+  useEffect(() => {
+    startCallRef.current = startCall
+  }, [startCall])
+
+  useEffect(() => {
+    const handleStartCall = () => {
+      startCallRef.current?.()
+    }
+
+    window.addEventListener("start-vapi-call", handleStartCall)
+
+    return () => {
+      window.removeEventListener("start-vapi-call", handleStartCall)
+      cleanupVapi()
+    }
+  }, [])
 
   const endCall = () => {
-    vapiRef.current?.stop();
-    setCallStatus("idle");
-    setIsMuted(false);
-  };
+    vapiRef.current?.stop()
+    setCallStatus("idle")
+    setIsMuted(false)
+    cleanupVapi()
+  }
 
   const toggleMute = () => {
     if (vapiRef.current) {
-      vapiRef.current.setMuted(!isMuted);
-      setIsMuted(!isMuted);
+      vapiRef.current.setMuted(!isMuted)
+      setIsMuted(!isMuted)
     }
-  };
-
-  useEffect(() => {
-    const vapi = new Vapi(VAPI_PUBLIC_KEY);
-    vapiRef.current = vapi;
-
-    vapi.on("call-start", () => setCallStatus("active"));
-    vapi.on("call-end", () => setCallStatus("idle"));
-    vapi.on("error", () => setCallStatus("idle"));
-
-    const handleStartCall = () => startCall();
-    window.addEventListener("start-vapi-call", handleStartCall);
-
-    return () => {
-      window.removeEventListener("start-vapi-call", handleStartCall);
-      vapiRef.current?.stop();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }
 
   if (callStatus === "idle") {
     return (
@@ -63,12 +104,9 @@ export default function VoiceCallWidget() {
           animation: "pulse-ring 2s infinite",
         }}
         aria-label="Talk to AI Agent">
-        <Phone
-          size={28}
-          color="#0A0A0A"
-        />
+        <Phone size={28} color="#0A0A0A" />
       </button>
-    );
+    )
   }
 
   if (callStatus === "connecting") {
@@ -82,14 +120,11 @@ export default function VoiceCallWidget() {
         <div
           className="w-10 h-10 rounded-full flex items-center justify-center animate-pulse"
           style={{ background: "#E8A020" }}>
-          <Phone
-            size={20}
-            color="#0A0A0A"
-          />
+          <Phone size={20} color="#0A0A0A" />
         </div>
         <span className="text-white text-sm font-medium">Connecting...</span>
       </div>
-    );
+    )
   }
 
   return (
@@ -101,36 +136,21 @@ export default function VoiceCallWidget() {
         boxShadow: "0 0 30px rgba(232, 160, 32, 0.15)",
       }}>
       <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
-      <span className="text-white text-sm font-medium">
-        AI Agent Speaking...
-      </span>
+      <span className="text-white text-sm font-medium">AI Agent Speaking...</span>
       <button
         onClick={toggleMute}
         className="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
         style={{ background: isMuted ? "#CC0000" : "rgba(255,255,255,0.1)" }}
         aria-label={isMuted ? "Unmute call" : "Mute call"}>
-        {isMuted ? (
-          <MicOff
-            size={18}
-            color="white"
-          />
-        ) : (
-          <Mic
-            size={18}
-            color="white"
-          />
-        )}
+        {isMuted ? <MicOff size={18} color="white" /> : <Mic size={18} color="white" />}
       </button>
       <button
         onClick={endCall}
         className="w-10 h-10 rounded-full flex items-center justify-center"
         style={{ background: "#CC0000" }}
         aria-label="End call">
-        <PhoneOff
-          size={18}
-          color="white"
-        />
+        <PhoneOff size={18} color="white" />
       </button>
     </div>
-  );
+  )
 }

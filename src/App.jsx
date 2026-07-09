@@ -1,4 +1,4 @@
-import Navbar from "./components/Navbar";
+﻿import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import AIBanner from "./components/AIBanner";
 import Menu from "./components/Menu";
